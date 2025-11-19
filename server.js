@@ -1,5 +1,5 @@
 const express = require('express');
-const Database = require('better-sqlite3');
+const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
@@ -19,17 +19,25 @@ app.use(session({
     secret: 'barista-express-secret-key-change-this-in-production',
     resave: false,
     saveUninitialized: false,
-    cookie: {
+    cookie: { 
         maxAge: 8 * 60 * 60 * 1000, // 8 hours
         httpOnly: true
     }
 }));
 
 // Initialize SQLite Database
-const db = new Database('./orders.db');
+const db = new sqlite3.Database('./orders.db', (err) => {
+    if (err) {
+        console.error('Error opening database:', err);
+    } else {
+        console.log('Connected to SQLite database');
+        initializeDatabase();
+    }
+});
 
+// Create tables if they don't exist
 function initializeDatabase() {
-    db.prepare(`
+    db.run(`
         CREATE TABLE IF NOT EXISTS orders (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_number TEXT UNIQUE,
@@ -42,9 +50,11 @@ function initializeDatabase() {
             timestamp TEXT NOT NULL,
             location TEXT
         )
-    `).run();
+    `, (err) => {
+        if (err) console.error('Error creating orders table:', err);
+    });
 
-    db.prepare(`
+    db.run(`
         CREATE TABLE IF NOT EXISTS order_items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             order_id INTEGER,
@@ -55,9 +65,11 @@ function initializeDatabase() {
             subtotal REAL NOT NULL,
             FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
         )
-    `).run();
+    `, (err) => {
+        if (err) console.error('Error creating order_items table:', err);
+    });
 
-    db.prepare(`
+    db.run(`
         CREATE TABLE IF NOT EXISTS employees (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             employee_id TEXT UNIQUE NOT NULL,
@@ -67,35 +79,48 @@ function initializeDatabase() {
             created_at TEXT NOT NULL,
             last_login TEXT
         )
-    `).run();
-
-    // Create default admin if none exist
-    const row = db.prepare(`SELECT COUNT(*) AS count FROM employees`).get();
-    if (row.count === 0) {
-        const pwd = bcrypt.hashSync('admin123', 10);
-        db.prepare(`
-            INSERT INTO employees (employee_id, password_hash, name, role, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        `).run('admin', pwd, 'Administrator', 'admin', new Date().toISOString());
-
-        console.log('✅ Default admin created: admin / admin123');
-    }
+    `, (err) => {
+        if (err) {
+            console.error('Error creating employees table:', err);
+        } else {
+            // Create default admin account if no employees exist
+            db.get('SELECT COUNT(*) as count FROM employees', async (err, row) => {
+                if (!err && row.count === 0) {
+                    const defaultPassword = await bcrypt.hash('admin123', 10);
+                    db.run(`
+                        INSERT INTO employees (employee_id, password_hash, name, role, created_at)
+                        VALUES (?, ?, ?, ?, ?)
+                    `, ['admin', defaultPassword, 'Administrator', 'admin', new Date().toISOString()], (err) => {
+                        if (!err) {
+                            console.log('✅ Default admin account created');
+                            console.log('   Employee ID: admin');
+                            console.log('   Password: admin123');
+                            console.log('   ⚠️  Please change this password immediately!');
+                        }
+                    });
+                }
+            });
+        }
+    });
 }
-
-initializeDatabase();
 
 // Authentication middleware
 function requireAuth(req, res, next) {
-    if (req.session && req.session.employeeId) return next();
+    if (req.session && req.session.employeeId) {
+        return next();
+    }
     res.redirect('/login');
 }
 
+// Check if user is authenticated (for API calls)
 function requireAuthAPI(req, res, next) {
-    if (req.session && req.session.employeeId) return next();
+    if (req.session && req.session.employeeId) {
+        return next();
+    }
     res.status(401).json({ error: 'Unauthorized' });
 }
 
-// Order number generator
+// Generate order number
 function generateOrderNumber() {
     const date = new Date();
     const dateStr = date.toISOString().slice(0, 10).replace(/-/g, '');
@@ -103,18 +128,18 @@ function generateOrderNumber() {
     return `ORD-${dateStr}-${randomStr}`;
 }
 
-/* -------------------------
-     WEB ROUTES
--------------------------- */
+// Web Routes
 
-// Customer ordering page
+// Customer ordering page (no auth required)
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 // Login page
 app.get('/login', (req, res) => {
-    if (req.session.employeeId) return res.redirect('/dashboard');
+    if (req.session && req.session.employeeId) {
+        return res.redirect('/dashboard');
+    }
     res.render('login', { error: null });
 });
 
@@ -126,37 +151,52 @@ app.post('/login', async (req, res) => {
         return res.render('login', { error: 'Please enter both Employee ID and Password' });
     }
 
-    const employee = db.prepare(`
-        SELECT * FROM employees WHERE employee_id = ?
-    `).get(employeeId);
+    db.get(
+        'SELECT * FROM employees WHERE employee_id = ?',
+        [employeeId],
+        async (err, employee) => {
+            if (err) {
+                console.error('Database error:', err);
+                return res.render('login', { error: 'An error occurred. Please try again.' });
+            }
 
-    if (!employee) {
-        return res.render('login', { error: 'Invalid Employee ID or Password' });
-    }
+            if (!employee) {
+                return res.render('login', { error: 'Invalid Employee ID or Password' });
+            }
 
-    const matches = await bcrypt.compare(password, employee.password_hash);
-    if (!matches) {
-        return res.render('login', { error: 'Invalid Employee ID or Password' });
-    }
+            const passwordMatch = await bcrypt.compare(password, employee.password_hash);
 
-    // Update last login
-    db.prepare(`UPDATE employees SET last_login = ? WHERE id = ?`)
-      .run(new Date().toISOString(), employee.id);
+            if (!passwordMatch) {
+                return res.render('login', { error: 'Invalid Employee ID or Password' });
+            }
 
-    // Set session
-    req.session.employeeId = employee.employee_id;
-    req.session.employeeName = employee.name;
-    req.session.employeeRole = employee.role;
+            // Update last login
+            db.run(
+                'UPDATE employees SET last_login = ? WHERE id = ?',
+                [new Date().toISOString(), employee.id]
+            );
 
-    res.redirect('/dashboard');
+            // Set session
+            req.session.employeeId = employee.employee_id;
+            req.session.employeeName = employee.name;
+            req.session.employeeRole = employee.role;
+
+            res.redirect('/dashboard');
+        }
+    );
 });
 
-// Logout
+// Logout handler
 app.get('/logout', (req, res) => {
-    req.session.destroy(() => res.redirect('/login'));
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error destroying session:', err);
+        }
+        res.redirect('/login');
+    });
 });
 
-// Dashboard
+// Dashboard page (protected)
 app.get('/dashboard', requireAuth, (req, res) => {
     res.render('dashboard', {
         employeeName: req.session.employeeName,
@@ -164,214 +204,327 @@ app.get('/dashboard', requireAuth, (req, res) => {
     });
 });
 
-// Employee management (admin)
+// Employee management page (admin only)
 app.get('/employees', requireAuth, (req, res) => {
     if (req.session.employeeRole !== 'admin') {
-        return res.status(403).send('Access denied');
+        return res.status(403).send('Access denied. Admin only.');
     }
 
-    const employees = db.prepare(`
-        SELECT id, employee_id, name, role, created_at, last_login 
-        FROM employees 
-        ORDER BY created_at DESC
-    `).all();
+    db.all('SELECT id, employee_id, name, role, created_at, last_login FROM employees ORDER BY created_at DESC', (err, employees) => {
+        if (err) {
+            console.error('Error fetching employees:', err);
+            return res.status(500).send('Error loading employees');
+        }
 
-    res.render('employees', {
-        employeeName: req.session.employeeName,
-        employees
+        res.render('employees', {
+            employeeName: req.session.employeeName,
+            employees: employees
+        });
     });
 });
 
-// QR Generator page
-app.get('/qr-codes', requireAuth, (req, res) => {
-    res.render('qr-generator');
-});
+// API Routes (all protected)
 
-/* -------------------------
-     API ROUTES
--------------------------- */
-
-// New order (public)
+// Submit new order (public API - no auth required)
 app.post('/api/orders', (req, res) => {
     const order = req.body;
     const orderNumber = generateOrderNumber();
 
-    const insertOrder = db.prepare(`
-        INSERT INTO orders (order_number, table_number, customer_name, customer_phone, special_instructions, total, timestamp, location)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `);
+    db.serialize(() => {
+        const orderStmt = db.prepare(`
+            INSERT INTO orders (order_number, table_number, customer_name, customer_phone, special_instructions, total, timestamp, location)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `);
 
-    const info = insertOrder.run(
-        orderNumber,
-        order.tableNumber,
-        order.customer.name,
-        order.customer.phone,
-        order.customer.specialInstructions || '',
-        order.total,
-        order.timestamp,
-        order.location
-    );
+        orderStmt.run(
+            orderNumber,
+            order.tableNumber,  // Add table number here
+            order.customer.name,
+            order.customer.phone,
+            order.customer.specialInstructions || '',
+            order.total,
+            order.timestamp,
+            order.location,
+            function(err) {
+                if (err) {
+                    console.error('Error inserting order:', err);
+                    return res.status(500).json({ error: 'Failed to place order' });
+                }
 
-    const orderId = info.lastInsertRowid;
+                const orderId = this.lastID;
 
-    const insertItem = db.prepare(`
-        INSERT INTO order_items (order_id, item_name, size, price, quantity, subtotal)
-        VALUES (?, ?, ?, ?, ?, ?)
-    `);
+                const itemStmt = db.prepare(`
+                    INSERT INTO order_items (order_id, item_name, size, price, quantity, subtotal)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                `);
 
-    const insertMany = db.transaction(items => {
-        for (const item of items) {
-            insertItem.run(orderId, item.name, item.size, item.price, item.quantity, item.subtotal);
-        }
+                order.items.forEach(item => {
+                    itemStmt.run(orderId, item.name, item.size, item.price, item.quantity, item.subtotal);
+                });
+
+                itemStmt.finalize();
+
+                res.json({ 
+                    success: true, 
+                    orderNumber: orderNumber,
+                    orderId: orderId
+                });
+            }
+        );
+
+        orderStmt.finalize();
     });
-
-    insertMany(order.items);
-
-    res.json({ success: true, orderNumber, orderId });
 });
 
-// Get orders
+// Get all orders (protected)
 app.get('/api/orders', requireAuthAPI, (req, res) => {
     const status = req.query.status;
-
-    let orders = [];
+    let query = `SELECT * FROM orders`;
+    
     if (status) {
-        orders = db.prepare(`SELECT * FROM orders WHERE status = ? ORDER BY timestamp DESC`).all(status);
-    } else {
-        orders = db.prepare(`SELECT * FROM orders ORDER BY timestamp DESC`).all();
+        query += ` WHERE status = ?`;
     }
+    
+    query += ` ORDER BY timestamp DESC`;
 
-    const getItems = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`);
+    db.all(query, status ? [status] : [], (err, orders) => {
+        if (err) {
+            console.error('Error fetching orders:', err);
+            return res.status(500).json({ error: 'Failed to fetch orders' });
+        }
 
-    const full = orders.map(order => ({
-        ...order,
-        items: getItems.all(order.id)
-    }));
+        const ordersWithItems = [];
+        let processed = 0;
 
-    res.json(full);
+        if (orders.length === 0) {
+            return res.json([]);
+        }
+
+        orders.forEach(order => {
+            db.all(
+                'SELECT * FROM order_items WHERE order_id = ?',
+                [order.id],
+                (err, items) => {
+                    if (err) {
+                        console.error('Error fetching order items:', err);
+                    }
+
+                    ordersWithItems.push({
+                        ...order,
+                        items: items || []
+                    });
+
+                    processed++;
+                    if (processed === orders.length) {
+                        res.json(ordersWithItems);
+                    }
+                }
+            );
+        });
+    });
 });
 
-// Get single order
+// Get single order (protected)
 app.get('/api/orders/:id', requireAuthAPI, (req, res) => {
     const orderId = req.params.id;
 
-    const order = db.prepare(`SELECT * FROM orders WHERE id = ?`).get(orderId);
-    if (!order) return res.status(404).json({ error: 'Order not found' });
+    db.get('SELECT * FROM orders WHERE id = ?', [orderId], (err, order) => {
+        if (err) {
+            console.error('Error fetching order:', err);
+            return res.status(500).json({ error: 'Failed to fetch order' });
+        }
 
-    const items = db.prepare(`SELECT * FROM order_items WHERE order_id = ?`).all(orderId);
+        if (!order) {
+            return res.status(404).json({ error: 'Order not found' });
+        }
 
-    res.json({ ...order, items });
+        db.all('SELECT * FROM order_items WHERE order_id = ?', [orderId], (err, items) => {
+            if (err) {
+                console.error('Error fetching order items:', err);
+                return res.status(500).json({ error: 'Failed to fetch order items' });
+            }
+
+            res.json({
+                ...order,
+                items: items
+            });
+        });
+    });
 });
 
-// Update status
-app.patch('/api/orders/:id/status', requireAuthAPI, (req, res) => {
-    const { status } = req.body;
-    const orderId = req.params.id;
+// get qr code
+app.get('/qr-codes', requireAuth, (req, res) => {
+    res.render('qr-generator');
+});
 
-    const valid = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
-    if (!valid.includes(status)) {
+// Update order status (protected)
+app.patch('/api/orders/:id/status', requireAuthAPI, (req, res) => {
+    const orderId = req.params.id;
+    const { status } = req.body;
+
+    const validStatuses = ['pending', 'preparing', 'ready', 'completed', 'cancelled'];
+    if (!validStatuses.includes(status)) {
         return res.status(400).json({ error: 'Invalid status' });
     }
 
-    const result = db.prepare(`
-        UPDATE orders SET status = ? WHERE id = ?
-    `).run(status, orderId);
+    db.run(
+        'UPDATE orders SET status = ? WHERE id = ?',
+        [status, orderId],
+        function(err) {
+            if (err) {
+                console.error('Error updating order status:', err);
+                return res.status(500).json({ error: 'Failed to update order status' });
+            }
 
-    if (result.changes === 0) return res.status(404).json({ error: 'Not found' });
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Order not found' });
+            }
 
-    res.json({ success: true, status });
+            res.json({ success: true, status: status });
+        }
+    );
 });
 
-// Delete order
+// Delete order (protected)
 app.delete('/api/orders/:id', requireAuthAPI, (req, res) => {
-    const id = req.params.id;
+    const orderId = req.params.id;
 
-    db.transaction(() => {
-        db.prepare(`DELETE FROM order_items WHERE order_id = ?`).run(id);
-        db.prepare(`DELETE FROM orders WHERE id = ?`).run(id);
-    })();
+    db.serialize(() => {
+        db.run('DELETE FROM order_items WHERE order_id = ?', [orderId]);
+        db.run('DELETE FROM orders WHERE id = ?', [orderId], function(err) {
+            if (err) {
+                console.error('Error deleting order:', err);
+                return res.status(500).json({ error: 'Failed to delete order' });
+            }
 
-    res.json({ success: true });
+            res.json({ success: true });
+        });
+    });
 });
 
-/* -------------------------
-     EMPLOYEE MANAGEMENT
--------------------------- */
+// Employee Management APIs (admin only)
 
-// Add employee
+// Add new employee
 app.post('/api/employees', requireAuthAPI, async (req, res) => {
     if (req.session.employeeRole !== 'admin') {
-        return res.status(403).json({ error: 'Admin only' });
+        return res.status(403).json({ error: 'Access denied. Admin only.' });
     }
 
     const { employeeId, password, name, role } = req.body;
 
-    const exists = db.prepare(`SELECT 1 FROM employees WHERE employee_id = ?`).get(employeeId);
-    if (exists) return res.status(400).json({ error: 'Employee ID already exists' });
+    if (!employeeId || !password || !name) {
+        return res.status(400).json({ error: 'Employee ID, password, and name are required' });
+    }
 
-    const hash = await bcrypt.hash(password, 10);
+    try {
+        const passwordHash = await bcrypt.hash(password, 10);
 
-    const info = db.prepare(`
-        INSERT INTO employees (employee_id, password_hash, name, role, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    `).run(employeeId, hash, name, role || 'staff', new Date().toISOString());
+        db.run(
+            `INSERT INTO employees (employee_id, password_hash, name, role, created_at)
+             VALUES (?, ?, ?, ?, ?)`,
+            [employeeId, passwordHash, name, role || 'staff', new Date().toISOString()],
+            function(err) {
+                if (err) {
+                    if (err.message.includes('UNIQUE')) {
+                        return res.status(400).json({ error: 'Employee ID already exists' });
+                    }
+                    console.error('Error creating employee:', err);
+                    return res.status(500).json({ error: 'Failed to create employee' });
+                }
 
-    res.json({ success: true, employeeId: info.lastInsertRowid });
+                res.json({ success: true, employeeId: this.lastID });
+            }
+        );
+    } catch (error) {
+        console.error('Error hashing password:', error);
+        res.status(500).json({ error: 'Failed to create employee' });
+    }
 });
 
 // Delete employee
 app.delete('/api/employees/:id', requireAuthAPI, (req, res) => {
     if (req.session.employeeRole !== 'admin') {
-        return res.status(403).json({ error: 'Admin only' });
+        return res.status(403).json({ error: 'Access denied. Admin only.' });
     }
 
-    const id = req.params.id;
+    const employeeId = req.params.id;
 
-    const employee = db.prepare(`SELECT employee_id FROM employees WHERE id = ?`).get(id);
-    if (!employee) return res.status(404).json({ error: 'Not found' });
+    // Prevent deleting yourself
+    db.get('SELECT employee_id FROM employees WHERE id = ?', [employeeId], (err, employee) => {
+        if (err || !employee) {
+            return res.status(404).json({ error: 'Employee not found' });
+        }
 
-    if (employee.employee_id === req.session.employeeId) {
-        return res.status(400).json({ error: 'Cannot delete your own account' });
-    }
+        if (employee.employee_id === req.session.employeeId) {
+            return res.status(400).json({ error: 'Cannot delete your own account' });
+        }
 
-    db.prepare(`DELETE FROM employees WHERE id = ?`).run(id);
+        db.run('DELETE FROM employees WHERE id = ?', [employeeId], function(err) {
+            if (err) {
+                console.error('Error deleting employee:', err);
+                return res.status(500).json({ error: 'Failed to delete employee' });
+            }
 
-    res.json({ success: true });
+            res.json({ success: true });
+        });
+    });
 });
 
 // Change password
 app.post('/api/change-password', requireAuthAPI, async (req, res) => {
     const { currentPassword, newPassword } = req.body;
 
-    const employee = db.prepare(`
-        SELECT * FROM employees WHERE employee_id = ?
-    `).get(req.session.employeeId);
+    if (!currentPassword || !newPassword) {
+        return res.status(400).json({ error: 'Current and new passwords are required' });
+    }
 
-    const matches = await bcrypt.compare(currentPassword, employee.password_hash);
-    if (!matches) return res.status(400).json({ error: 'Incorrect current password' });
+    db.get(
+        'SELECT * FROM employees WHERE employee_id = ?',
+        [req.session.employeeId],
+        async (err, employee) => {
+            if (err || !employee) {
+                return res.status(500).json({ error: 'Error verifying password' });
+            }
 
-    const newHash = await bcrypt.hash(newPassword, 10);
+            const passwordMatch = await bcrypt.compare(currentPassword, employee.password_hash);
 
-    db.prepare(`
-        UPDATE employees SET password_hash = ? WHERE id = ?
-    `).run(newHash, employee.id);
+            if (!passwordMatch) {
+                return res.status(400).json({ error: 'Current password is incorrect' });
+            }
 
-    res.json({ success: true });
+            const newPasswordHash = await bcrypt.hash(newPassword, 10);
+
+            db.run(
+                'UPDATE employees SET password_hash = ? WHERE id = ?',
+                [newPasswordHash, employee.id],
+                function(err) {
+                    if (err) {
+                        console.error('Error updating password:', err);
+                        return res.status(500).json({ error: 'Failed to update password' });
+                    }
+
+                    res.json({ success: true });
+                }
+            );
+        }
+    );
 });
 
-/* -------------------------
-     START SERVER
--------------------------- */
-
-app.listen(PORT, () => {
-    //console.log(`Server running: http://localhost:${PORT}`);
-    //console.log(`Dashboard:      http://localhost:${PORT}/dashboard`);
-    //console.log(`Customer page:  http://localhost:${PORT}`);
-    console.log(`Server running`);
+// Start server
+app.listen(PORT,() => {
+    console.log(`Server running `);
+    //console.log(`Dashboard available at http://localhost:${PORT}/dashboard`);
+    //console.log(`Customer page available at http://localhost:${PORT}`);
 });
-// Graceful shutdown ////////
+
+// Graceful shutdown
 process.on('SIGINT', () => {
-    console.log('Closing database...');
-    db.close();
-    process.exit(0);
+    db.close((err) => {
+        if (err) {
+            console.error('Error closing database:', err);
+        } else {
+            console.log('Database connection closed');
+        }
+        process.exit(0);
+    });
 });
