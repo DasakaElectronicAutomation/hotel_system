@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Barista Express - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .user-name {
+            color: rgb(51, 51, 51);
+            font-size: 0.9rem;
+        }
+        
+        .user-name strong {
+            font-size: 1rem;
+            margin-left: 5px;
+        }
+        
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: rgb(51, 51, 51);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .admin-link {
+            background: rgba(255,255,255,0.2);
+            color: rgb(51, 51, 51);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        .admin-link:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .qr-btn {
+            background: rgba(255,255,255,0.2);
+            color: rgb(51, 51, 51);
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        
+        .qr-btn:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        
+        .header {
+            background-color: #6f4e37;
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .stat-card .label {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #6f4e37;
+        }
+        
+        .filters {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .filter-btn {
+            padding: 10px 20px;
+            border: 2px solid #6f4e37;
+            background: white;
+            color: #6f4e37;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+        }
+        
+        .filter-btn.active {
+            background: #6f4e37;
+            color: white;
+        }
+        
+        .filter-btn:hover {
+            background: #6f4e37;
+            color: white;
+        }
+        
+        .orders-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+        
+        .order-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+            transition: transform 0.2s;
+        }
+        
+        .order-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+        }
+        
+        .order-header {
+            padding: 15px;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .order-number {
+            font-weight: bold;
+            font-size: 1.1rem;
+            color: #6f4e37;
+        }
+        
+        .order-status {
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        
+        .status-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .status-preparing {
+            background: #cce5ff;
+            color: #004085;
+        }
+        
+        .status-ready {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-completed {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .status-cancelled {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .order-body {
+            padding: 15px;
+        }
+        
+        .customer-info {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .customer-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-bottom: 5px;
+        }
+        
+        .customer-phone {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .order-time {
+            color: #999;
+            font-size: 0.85rem;
+            margin-top: 5px;
+        }
+        
+        .order-items {
+            margin-bottom: 15px;
+        }
+        
+        .order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee;
+        }
+        
+        .order-item:last-child {
+            border-bottom: none;
+        }
+        
+        .item-details {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: 500;
+        }
+        
+        .item-size {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .item-price {
+            text-align: right;
+            color: #666;
+        }
+        
+        .special-instructions {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .special-instructions strong {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        .order-total {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            font-size: 1.2rem;
+            padding-top: 10px;
+            border-top: 2px solid #eee;
+            margin-bottom: 15px;
+        }
+        
+        .order-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-preparing {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-ready {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-complete {
+            background: #17a2b8;
+            color: white;
+        }
+        
+        .btn-cancel {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .action-btn:hover {
+            opacity: 0.8;
+            transform: scale(1.02);
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #666;
+        }
+        
+        .empty-state-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #6f4e37;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.2s;
+        }
+        
+        .refresh-btn:hover {
+            transform: scale(1.1);
+        }
+        
+        .refresh-btn.spinning {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+            .orders-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Dashboard - Barista Express</h1>
+        <div class="subtitle">Order Management System</div>
+    </div>
+
+    <div class="user-info">
+            <div class="user-name">
+                👤 Logged in as: <strong><%= employeeName %></strong>
+            </div>
+            <div>
+                <% if (employeeRole === 'admin') { %>
+                    <a href="/qr-codes" class="qr-btn">🪑 Manage tables</a>
+                    <a href="/employees" class="admin-link">👥 Manage Employees</a>
+                <% } %>
+                <a href="/logout" class="logout-btn">🚪 Logout</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="label">Pending Orders</div>
+                <div class="value" id="stat-pending">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Preparing</div>
+                <div class="value" id="stat-preparing">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Ready</div>
+                <div class="value" id="stat-ready">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Today's Revenue</div>
+                <div class="value" id="stat-revenue">RS. 0</div>
+            </div>
+        </div>
+        
+        <div class="filters">
+            <button class="filter-btn active" data-filter="all">All Orders</button>
+            <button class="filter-btn" data-filter="pending">Pending</button>
+            <button class="filter-btn" data-filter="preparing">Preparing</button>
+            <button class="filter-btn" data-filter="ready">Ready</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
+        </div>
+        
+        <div class="orders-grid" id="orders-container">
+            <!-- Orders will be populated here -->
+        </div>
+    </div>
+    
+    <button class="refresh-btn" id="refresh-btn" title="Refresh Orders">
+        🔄
+    </button>
+
+    <script>
+        let currentFilter = 'all';
+        let autoRefreshInterval;
+        
+        // Load orders on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOrders();
+            setupFilters();
+            setupAutoRefresh();
+        });
+        
+        // Setup filter buttons
+        function setupFilters() {
+            const filterButtons = document.querySelectorAll('.filter-btn');
+            filterButtons.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    filterButtons.forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentFilter = btn.dataset.filter;
+                    loadOrders();
+                });
+            });
+        }
+        
+        // Setup auto-refresh
+        function setupAutoRefresh() {
+            autoRefreshInterval = setInterval(() => {
+                loadOrders(true); // Silent refresh
+            }, 10000); // Refresh every 10 seconds
+        }
+        
+        // Manual refresh button
+        document.getElementById('refresh-btn').addEventListener('click', function() {
+            this.classList.add('spinning');
+            loadOrders();
+            setTimeout(() => {
+                this.classList.remove('spinning');
+            }, 1000);
+        });
+        
+        // Load orders from API
+        async function loadOrders(silent = false) {
+            try {
+                const url = currentFilter === 'all' 
+                    ? '/api/orders' 
+                    : `/api/orders?status=${currentFilter}`;
+                    
+                const response = await fetch(url);
+                const orders = await response.json();
+                
+                displayOrders(orders);
+                updateStats(orders);
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                if (!silent) {
+                    alert('Failed to load orders. Please try again.');
+                }
+            }
+        }
+        
+        // Display orders in the grid
+        function displayOrders(orders) {
+            const container = document.getElementById('orders-container');
+            
+            if (orders.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1 / -1;">
+                        <div class="empty-state-icon">📋</div>
+                        <h2>No orders found</h2>
+                        <p>Orders will appear here once customers place them.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = orders.map(order => createOrderCard(order)).join('');
+        }
+        
+        // Create order card HTML
+        function createOrderCard(order) {
+            const statusClass = `status-${order.status}`;
+            const timeAgo = getTimeAgo(order.timestamp);
+            
+            return `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div>
+                            <div class="order-number">${order.order_number}</div>
+                            <div style="font-size: 1.3rem; font-weight: bold; color: #6f4e37; margin-top: 5px;">
+                                🪑 Table ${order.table_number}
+                            </div>
+                        </div>
+                        <div class="order-status ${statusClass}">${order.status}</div>
+                    </div>
+                    <div class="order-body">
+                        <div class="customer-info">
+                            <div class="customer-name">👤 ${order.customer_name}</div>
+                            <div class="customer-phone">📱 ${order.customer_phone}</div>
+                            <div class="order-time">🕐 ${timeAgo}</div>
+                        </div>
+                        
+                        ${order.special_instructions ? `
+                            <div class="special-instructions">
+                                <strong>📝 Special Instructions:</strong>
+                                ${order.special_instructions}
+                            </div>
+                        ` : ''}
+                        
+                        <div class="order-items">
+                            ${order.items.map(item => `
+                                <div class="order-item">
+                                    <div class="item-details">
+                                        <div class="item-name">${item.item_name} × ${item.quantity}</div>
+                                        <div class="item-size">${item.size.charAt(0).toUpperCase() + item.size.slice(1)}</div>
+                                    </div>
+                                    <div class="item-price">Rs. ${item.subtotal}</div>
+                                </div>
+                            `).join('')}
+                        </div>
+                        
+                        <div class="order-total">
+                            <span>Total:</span>
+                            <span>Rs. ${order.total}</span>
+                        </div>
+                        
+                        <div class="order-actions">
+                            ${getActionButtons(order)}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Get action buttons based on order status
+        function getActionButtons(order) {
+            switch(order.status) {
+                case 'pending':
+                    return `
+                        <button class="action-btn btn-preparing" onclick="updateOrderStatus(${order.id}, 'preparing')">
+                            Start Preparing
+                        </button>
+                        <button class="action-btn btn-cancel" onclick="updateOrderStatus(${order.id}, 'cancelled')">
+                            Cancel
+                        </button>
+                    `;
+                case 'preparing':
+                    return `
+                        <button class="action-btn btn-ready" onclick="updateOrderStatus(${order.id}, 'ready')">
+                            Mark Ready
+                        </button>
+                    `;
+                case 'ready':
+                    return `
+                        <button class="action-btn btn-complete" onclick="updateOrderStatus(${order.id}, 'completed')">
+                            Complete Order
+                        </button>
+                    `;
+                case 'completed':
+                case 'cancelled':
+                    return `
+                        <button class="action-btn" style="background: #6c757d; color: white;" disabled>
+                            ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </button>
+                    `;
+            }
+        }
+        
+        // Update order status
+        async function updateOrderStatus(orderId, newStatus) {
+            try {
+                const response = await fetch(`/api/orders/${orderId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ status: newStatus })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    loadOrders();
+                    
+                    // Show notification based on status
+                    if (newStatus === 'ready') {
+                        playNotificationSound();
+                    }
+                } else {
+                    alert('Failed to update order status');
+                }
+            } catch (error) {
+                console.error('Error updating order status:', error);
+                alert('Failed to update order status');
+            }
+        }
+        
+        // Update statistics
+        function updateStats(orders) {
+            const stats = {
+                pending: 0,
+                preparing: 0,
+                ready: 0,
+                revenue: 0
+            };
+            
+            const today = new Date().toISOString().split('T')[0];
+            
+            orders.forEach(order => {
+                if (order.status === 'pending') stats.pending++;
+                if (order.status === 'preparing') stats.preparing++;
+                if (order.status === 'ready') stats.ready++;
+                
+                // Calculate today's revenue from completed orders
+                const orderDate = order.timestamp.split('T')[0];
+                if (orderDate === today && order.status === 'completed') {
+                    stats.revenue += order.total;
+                }
+            });
+            
+            document.getElementById('stat-pending').textContent = stats.pending;
+            document.getElementById('stat-preparing').textContent = stats.preparing;
+            document.getElementById('stat-ready').textContent = stats.ready;
+            document.getElementById('stat-revenue').textContent = `Rs. ${stats.revenue}`;
+        }
+        
+        // Get time ago string
+        function getTimeAgo(timestamp) {
+            const now = new Date();
+            const orderTime = new Date(timestamp);
+            const diffMs = now - orderTime;
+            const diffMins = Math.floor(diffMs / 60000);
+            
+            if (diffMins < 1) return 'Just now';
+            if (diffMins < 60) return `${diffMins} min ago`;
+            
+            const diffHours = Math.floor(diffMins / 60);
+            if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            
+            const diffDays = Math.floor(diffHours / 24);
+            return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+        }
+        
+        // Play notification sound (optional)
+        function playNotificationSound() {
+            // You can add a sound file and play it here
+            console.log('🔔 Order is ready!');
+        }
+    </script>
+</body>
+</html>

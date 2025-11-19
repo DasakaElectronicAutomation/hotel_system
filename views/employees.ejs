@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Management - Barista Express</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background-color: #6f4e37;
+            color: white;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+        
+        .header .subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+        
+        .user-info {
+            background: rgba(255,255,255,0.1);
+            padding: 10px 20px;
+            margin-top: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .back-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .actions {
+            margin-bottom: 20px;
+        }
+        
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #6f4e37;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5a3e2b;
+        }
+        
+        .employees-table {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th {
+            background: #6f4e37;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+        }
+        
+        td {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        tr:last-child td {
+            border-bottom: none;
+        }
+        
+        tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .role-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+        
+        .role-admin {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        .role-staff {
+            background: #e9ecef;
+            color: #495057;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 20px;
+        }
+        
+        .modal.active {
+            display: flex;
+        }
+        
+        .modal-content {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 500px;
+            width: 100%;
+        }
+        
+        .modal-header {
+            margin-bottom: 20px;
+        }
+        
+        .modal-header h2 {
+            color: #6f4e37;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+            flex: 1;
+        }
+        
+        .btn-submit {
+            background: #6f4e37;
+            color: white;
+            flex: 1;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>👥 Employee Management</h1>
+        <div class="subtitle">Manage staff access to the dashboard</div>
+        <div class="user-info">
+            <div>Logged in as: <strong><%= employeeName %></strong></div>
+            <a href="/dashboard" class="back-btn">← Back to Dashboard</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="actions">
+            <button class="btn btn-primary" onclick="showAddModal()">
+                ➕ Add New Employee
+            </button>
+        </div>
+        
+        <div class="employees-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Employee ID</th>
+                        <th>Name</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                        <th>Last Login</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% employees.forEach(employee => { %>
+                        <tr>
+                            <td><%= employee.employee_id %></td>
+                            <td><%= employee.name %></td>
+                            <td>
+                                <span class="role-badge role-<%= employee.role %>">
+                                    <%= employee.role.toUpperCase() %>
+                                </span>
+                            </td>
+                            <td><%= new Date(employee.created_at).toLocaleDateString() %></td>
+                            <td>
+                                <%= employee.last_login 
+                                    ? new Date(employee.last_login).toLocaleString() 
+                                    : 'Never' %>
+                            </td>
+                            <td>
+                                <button 
+                                    class="btn-delete" 
+                                    onclick="deleteEmployee(<%= employee.id %>, '<%= employee.employee_id %>')"
+                                >
+                                    🗑️ Delete
+                                </button>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Add Employee Modal -->
+    <div class="modal" id="add-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Employee</h2>
+            </div>
+            
+            <div id="message"></div>
+            
+            <form id="add-employee-form" onsubmit="addEmployee(event)">
+                <div class="form-group">
+                    <label for="employee-id">Employee ID *</label>
+                    <input 
+                        type="text" 
+                        id="employee-id" 
+                        required
+                        placeholder="e.g., emp001"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="employee-name">Full Name *</label>
+                    <input 
+                        type="text" 
+                        id="employee-name" 
+                        required
+                        placeholder="Enter full name"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="employee-password">Password *</label>
+                    <input 
+                        type="password" 
+                        id="employee-password" 
+                        required
+                        minlength="6"
+                        placeholder="Minimum 6 characters"
+                    >
+                </div>
+                
+                <div class="form-group">
+                    <label for="employee-role">Role *</label>
+                    <select id="employee-role" required>
+                        <option value="staff">Staff</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-cancel" onclick="hideAddModal()">
+                        Cancel
+                    </button>
+                    <button type="submit" class="btn btn-submit">
+                        Add Employee
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showAddModal() {
+            document.getElementById('add-modal').classList.add('active');
+            document.getElementById('add-employee-form').reset();
+            document.getElementById('message').innerHTML = '';
+        }
+        
+        function hideAddModal() {
+            document.getElementById('add-modal').classList.remove('active');
+        }
+        
+        async function addEmployee(event) {
+            event.preventDefault();
+            
+            const employeeId = document.getElementById('employee-id').value;
+            const name = document.getElementById('employee-name').value;
+            const password = document.getElementById('employee-password').value;
+            const role = document.getElementById('employee-role').value;
+            
+            try {
+                const response = await fetch('/api/employees', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        employeeId,
+                        name,
+                        password,
+                        role
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    document.getElementById('message').innerHTML = 
+                        '<div class="success-message">✅ Employee added successfully!</div>';
+                    
+                    setTimeout(() => {
+                        location.reload();
+                    }, 1500);
+                } else {
+                    document.getElementById('message').innerHTML = 
+                        `<div class="error-message">❌ ${result.error}</div>`;
+                }
+            } catch (error) {
+                console.error('Error adding employee:', error);
+                document.getElementById('message').innerHTML = 
+                    '<div class="error-message">❌ Failed to add employee</div>';
+            }
+        }
+        
+        async function deleteEmployee(id, employeeId) {
+            if (!confirm(`Are you sure you want to delete employee "${employeeId}"?`)) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/employees/${id}`, {
+                    method: 'DELETE'
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    location.reload();
+                } else {
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (error) {
+                console.error('Error deleting employee:', error);
+                alert('Failed to delete employee');
+            }
+        }
+    </script>
+</body>
+</html>
