@@ -521,7 +521,7 @@ app.post('/api/change-password', requireAuthAPI, async (req, res) => {
 // Start server
 app.listen(PORT,() => {
     console.log(`Server running `);
-    console.log(`Dashboard available at http://localhost:${PORT}/dashboard`);
+    //console.log(`Dashboard available at http://localhost:${PORT}/dashboard`);
     //console.log(`Customer page available at http://localhost:${PORT}`);
 });
 
