@@ -363,10 +363,11 @@ app.post('/api/change-password', requireAuthAPI, async (req, res) => {
      START SERVER
 -------------------------- */
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running: http://localhost:${PORT}`);
-    console.log(`Dashboard:      http://localhost:${PORT}/dashboard`);
-    console.log(`Customer page:  http://localhost:${PORT}`);
+app.listen(PORT, () => {
+    //console.log(`Server running: http://localhost:${PORT}`);
+    //console.log(`Dashboard:      http://localhost:${PORT}/dashboard`);
+    //console.log(`Customer page:  http://localhost:${PORT}`);
+    console.log(`Server running`);
 });
 // Graceful shutdown ////////
 process.on('SIGINT', () => {
