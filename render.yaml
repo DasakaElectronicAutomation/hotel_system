@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: hotel-management
+    env: node
+    buildCommand: npm install && npm rebuild sqlite3 --build-from-source
+    startCommand: node server.js
+    envVars:
+      - key: NODE_VERSION
+        value: 20.19.5
