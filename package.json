@@ -7,6 +7,11 @@
   },
   "main": "server.js",
   "scripts": {
+    "start": "node server.js",
+    "build": "npm rebuild && npm run sqlite3-build",
+    "sqlite3-build": "cd node_modules/sqlite3 && npm run install",
+    "preinstall": "npm config set sqlite3-s3-host-prefix false",
+    "install": "npm rebuild sqlite3 --build-from-source",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
