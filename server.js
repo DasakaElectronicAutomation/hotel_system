@@ -1,5 +1,5 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+//const sqlite3 = require('sqlite3').verbose();
 const bodyParser = require('body-parser');
 const session = require('express-session');
 const bcrypt = require('bcrypt');
@@ -24,7 +24,7 @@ app.use(session({
         httpOnly: true
     }
 }));
-
+/**
 // Initialize SQLite Database
 const db = new sqlite3.Database('./orders.db', (err) => {
     if (err) {
@@ -103,6 +103,7 @@ function initializeDatabase() {
         }
     });
 }
+***/
 
 // Authentication middleware
 function requireAuth(req, res, next) {
@@ -149,9 +150,16 @@ app.post('/login', async (req, res) => {
 
     if (!employeeId || !password) {
         return res.render('login', { error: 'Please enter both Employee ID and Password' });
+    }else{
+                    // Set session
+        req.session.employeeId = 1;
+        req.session.employeeName = 'admin';
+        req.session.employeeRole = 'admin123';
+
+        res.redirect('/dashboard');
     }
 
-    db.get(
+    /***db.get(
         'SELECT * FROM employees WHERE employee_id = ?',
         [employeeId],
         async (err, employee) => {
@@ -183,7 +191,7 @@ app.post('/login', async (req, res) => {
 
             res.redirect('/dashboard');
         }
-    );
+    );***/
 });
 
 // Logout handler
@@ -210,7 +218,7 @@ app.get('/employees', requireAuth, (req, res) => {
         return res.status(403).send('Access denied. Admin only.');
     }
 
-    db.all('SELECT id, employee_id, name, role, created_at, last_login FROM employees ORDER BY created_at DESC', (err, employees) => {
+    /***db.all('SELECT id, employee_id, name, role, created_at, last_login FROM employees ORDER BY created_at DESC', (err, employees) => {
         if (err) {
             console.error('Error fetching employees:', err);
             return res.status(500).send('Error loading employees');
@@ -220,7 +228,7 @@ app.get('/employees', requireAuth, (req, res) => {
             employeeName: req.session.employeeName,
             employees: employees
         });
-    });
+    });***/
 });
 
 // API Routes (all protected)
@@ -230,7 +238,7 @@ app.post('/api/orders', (req, res) => {
     const order = req.body;
     const orderNumber = generateOrderNumber();
 
-    db.serialize(() => {
+    /***db.serialize(() => {
         const orderStmt = db.prepare(`
             INSERT INTO orders (order_number, table_number, customer_name, customer_phone, special_instructions, total, timestamp, location)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -273,7 +281,7 @@ app.post('/api/orders', (req, res) => {
         );
 
         orderStmt.finalize();
-    });
+    });***/
 });
 
 // Get all orders (protected)
@@ -287,7 +295,7 @@ app.get('/api/orders', requireAuthAPI, (req, res) => {
     
     query += ` ORDER BY timestamp DESC`;
 
-    db.all(query, status ? [status] : [], (err, orders) => {
+    /***db.all(query, status ? [status] : [], (err, orders) => {
         if (err) {
             console.error('Error fetching orders:', err);
             return res.status(500).json({ error: 'Failed to fetch orders' });
@@ -321,14 +329,14 @@ app.get('/api/orders', requireAuthAPI, (req, res) => {
                 }
             );
         });
-    });
+    });***/
 });
 
 // Get single order (protected)
 app.get('/api/orders/:id', requireAuthAPI, (req, res) => {
     const orderId = req.params.id;
 
-    db.get('SELECT * FROM orders WHERE id = ?', [orderId], (err, order) => {
+    /***db.get('SELECT * FROM orders WHERE id = ?', [orderId], (err, order) => {
         if (err) {
             console.error('Error fetching order:', err);
             return res.status(500).json({ error: 'Failed to fetch order' });
@@ -349,7 +357,7 @@ app.get('/api/orders/:id', requireAuthAPI, (req, res) => {
                 items: items
             });
         });
-    });
+    });***/
 });
 
 // get qr code
@@ -367,7 +375,7 @@ app.patch('/api/orders/:id/status', requireAuthAPI, (req, res) => {
         return res.status(400).json({ error: 'Invalid status' });
     }
 
-    db.run(
+    /***db.run(
         'UPDATE orders SET status = ? WHERE id = ?',
         [status, orderId],
         function(err) {
@@ -382,14 +390,14 @@ app.patch('/api/orders/:id/status', requireAuthAPI, (req, res) => {
 
             res.json({ success: true, status: status });
         }
-    );
+    );***/
 });
 
 // Delete order (protected)
 app.delete('/api/orders/:id', requireAuthAPI, (req, res) => {
     const orderId = req.params.id;
 
-    db.serialize(() => {
+    /***db.serialize(() => {
         db.run('DELETE FROM order_items WHERE order_id = ?', [orderId]);
         db.run('DELETE FROM orders WHERE id = ?', [orderId], function(err) {
             if (err) {
@@ -399,7 +407,7 @@ app.delete('/api/orders/:id', requireAuthAPI, (req, res) => {
 
             res.json({ success: true });
         });
-    });
+    });***/
 });
 
 // Employee Management APIs (admin only)
@@ -416,7 +424,7 @@ app.post('/api/employees', requireAuthAPI, async (req, res) => {
         return res.status(400).json({ error: 'Employee ID, password, and name are required' });
     }
 
-    try {
+    /***try {
         const passwordHash = await bcrypt.hash(password, 10);
 
         db.run(
@@ -438,7 +446,7 @@ app.post('/api/employees', requireAuthAPI, async (req, res) => {
     } catch (error) {
         console.error('Error hashing password:', error);
         res.status(500).json({ error: 'Failed to create employee' });
-    }
+    }***/
 });
 
 // Delete employee
@@ -448,7 +456,7 @@ app.delete('/api/employees/:id', requireAuthAPI, (req, res) => {
     }
 
     const employeeId = req.params.id;
-
+    /***
     // Prevent deleting yourself
     db.get('SELECT employee_id FROM employees WHERE id = ?', [employeeId], (err, employee) => {
         if (err || !employee) {
@@ -467,7 +475,7 @@ app.delete('/api/employees/:id', requireAuthAPI, (req, res) => {
 
             res.json({ success: true });
         });
-    });
+    });***/
 });
 
 // Change password
@@ -478,7 +486,7 @@ app.post('/api/change-password', requireAuthAPI, async (req, res) => {
         return res.status(400).json({ error: 'Current and new passwords are required' });
     }
 
-    db.get(
+    /***db.get(
         'SELECT * FROM employees WHERE employee_id = ?',
         [req.session.employeeId],
         async (err, employee) => {
@@ -507,7 +515,7 @@ app.post('/api/change-password', requireAuthAPI, async (req, res) => {
                 }
             );
         }
-    );
+    );***/
 });
 
 // Start server
@@ -519,12 +527,12 @@ app.listen(PORT,() => {
 
 // Graceful shutdown
 process.on('SIGINT', () => {
-    db.close((err) => {
+    /***db.close((err) => {
         if (err) {
             console.error('Error closing database:', err);
         } else {
             console.log('Database connection closed');
         }
         process.exit(0);
-    });
+    });***/
 });

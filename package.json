@@ -1,29 +1,13 @@
 {
-  
-  "name": "hotel_management_webapp",
+  "name": "hotel_management",
   "version": "1.0.0",
-  "engines": {
-    "node": "20.x"
-  },
+  "description": "",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "build": "npm rebuild && npm run sqlite3-build",
-    "sqlite3-build": "cd node_modules/sqlite3 && npm run install",
-    "preinstall": "npm config set sqlite3-s3-host-prefix false",
-    "install": "npm rebuild sqlite3 --build-from-source",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "bcrypt": "^6.0.0",
-    "body-parser": "^2.2.0",
-    "ejs": "^3.1.10",
-    "express": "^5.1.0",
-    "express-session": "^1.18.2",
-    "sqlite3": "^5.1.7"
-  }
+  "license": "ISC"
 }
